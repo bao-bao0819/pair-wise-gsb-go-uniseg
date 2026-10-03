@@ -41,6 +41,14 @@ The [GraphemeClusterCount] function will return 1 for the rainbow flag emoji.
 The Graphemes class and a variety of functions in this package will allow you to
 split strings into its grapheme clusters.
 
+When text arrives incrementally, for example in network blocks whose boundary
+may fall in the middle of an emoji or a UTF-8 encoding,
+[IncrementalGraphemes] provides a streaming parser: its Feed method returns
+only clusters that cannot be changed by later data while it retains the open
+cluster, incomplete trailing bytes, and the full boundary state, and its
+Finish method closes the stream. The results are identical to segmenting the
+concatenated input in a single pass.
+
 # Word Boundaries
 
 Word boundaries are used in a number of different contexts. The most familiar
