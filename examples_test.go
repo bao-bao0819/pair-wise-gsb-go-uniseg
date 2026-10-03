@@ -329,3 +329,20 @@ func ExampleStringWidth() {
 	fmt.Println(uniseg.StringWidth("Hello, 世界"))
 	// Output: 11
 }
+
+func ExampleLayoutTextString() {
+	str := "omaccp g fef klomkmp igbpa dbhchcc"
+	layout := uniseg.LayoutTextString(str, 10)
+	for _, paragraph := range layout.Paragraphs {
+		for _, line := range paragraph.Lines {
+			fmt.Printf("%q width=%d overflow=%t\n",
+				str[line.From:line.To], line.Width, line.Overflow)
+		}
+	}
+	// Output:
+	// "omaccp " width=7 overflow=false
+	// "g fef " width=6 overflow=false
+	// "klomkmp " width=8 overflow=false
+	// "igbpa " width=6 overflow=false
+	// "dbhchcc" width=7 overflow=false
+}

@@ -65,6 +65,30 @@ window or other display area. This package provides methods to determine the
 positions in a string where a line must be broken, may be broken, or must not be
 broken.
 
+# Paragraph Layout
+
+Building on the line breaking rules, [LayoutTextString] and [LayoutText] lay
+out an entire plain text into lines of a given maximum column width. Among all
+legal combinations of break opportunities, they minimize the sum of
+(maxWidth-lineWidth)^2 over all non-final lines, which produces more evenly
+filled lines than greedy wrapping. [LineMustBreak] positions are always
+broken, [LineDontBreak] positions are never candidates, and paragraphs
+(separated by mandatory breaks such as LF or CRLF) are optimized
+independently. An indivisible fragment wider than the maximum width occupies a
+line by itself and is flagged as overflowing; it is never split into runes.
+The original text is returned as byte ranges plus a list of inserted break
+positions; nothing is trimmed, normalized, or copied. ANSI control sequences
+and hyphenation are not handled.
+
+Complexity: the input is segmented exactly once with one call sequence of
+[StepString] (or [Step]); the parser is never restarted over the same bytes.
+The collected grapheme clusters are grouped into indivisible atoms and laid
+out with backward dynamic programming. A paragraph of n atoms takes O(n^2)
+time and O(n) space in the worst case (a long unbroken paragraph), while in
+practice the inner scan stops as soon as a line exceeds the maximum width.
+Across the whole text, time is linear in the byte count plus the sum of the
+per-paragraph O(n^2) costs, and space is linear in the text length.
+
 # Monospace Width
 
 Monospace width, as referred to in this package, is the width of a string in a

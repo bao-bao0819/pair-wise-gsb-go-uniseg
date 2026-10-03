@@ -31,6 +31,10 @@ Sentence boundaries are often used for triple-click or some other method of sele
 
 Line breaking, also known as word wrapping, is the process of breaking a section of text into lines such that it will fit in the available width of a page, window or other display area. This package provides tools to determine where a string may or may not be broken and where it must be broken (for example after newline characters).
 
+### Paragraph Layout
+
+On top of the line breaking rules, `LayoutTextString` / `LayoutText` lay out an entire plain text into lines of a maximum column width. Over all legal break combinations they minimize the sum of `(maxWidth-lineWidth)^2` for non-final lines, which fills lines more evenly than greedy wrapping. Mandatory breaks delimit paragraphs (CRLF is one break), an indivisible fragment that is too wide occupies its own line and is flagged as overflowing (never split into runes), and the result is returned as original byte ranges plus inserted break positions — nothing is trimmed, normalized, or copied. See [the documentation](https://pkg.go.dev/github.com/rivo/uniseg#hdr-Paragraph_Layout) for complexity details. ANSI escapes and hyphenation are not handled.
+
 ### Monospace Width
 
 Most terminals or text displays / text editors using a monospace font (for example source code editors) use a fixed width for each character. Some characters such as emojis or characters found in Asian and other languages may take up more than one character cell. This package provides tools to determine the number of cells a string will take up when displayed in a monospace font. See [here](https://pkg.go.dev/github.com/rivo/uniseg#hdr-Monospace_Width) for more information.
