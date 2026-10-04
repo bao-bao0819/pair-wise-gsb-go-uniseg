@@ -18,34 +18,12 @@ var EastAsianAmbiguousWidth = 1
 //     have a width of 1)
 //   - Regional Indicator: Width of 2
 //   - Extended Pictographic: Width of 2, unless Emoji Presentation is "No".
+//
+// This is retained for backwards compatibility within the package and simply
+// delegates to the shared [WidthStrategy] logic using the package-default
+// policy (which reads the global [EastAsianAmbiguousWidth]).
 func runeWidth(r rune, graphemeProperty int) int {
-	switch graphemeProperty {
-	case prControl, prCR, prLF, prExtend, prZWJ:
-		return 0
-	case prRegionalIndicator:
-		return 2
-	case prExtendedPictographic:
-		if property(emojiPresentation, r) == prEmojiPresentation {
-			return 2
-		}
-		return 1
-	}
-
-	switch r {
-	case 0x2e3a:
-		return 3
-	case 0x2e3b:
-		return 4
-	}
-
-	switch propertyEastAsianWidth(r) {
-	case prW, prF:
-		return 2
-	case prA:
-		return EastAsianAmbiguousWidth
-	}
-
-	return 1
+	return (*WidthStrategy)(nil).firstRuneWidth(r, graphemeProperty)
 }
 
 // StringWidth returns the monospace width for the given string, that is, the

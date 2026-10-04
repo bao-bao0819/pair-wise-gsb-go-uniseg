@@ -59,6 +59,18 @@ fmt.Println(width)
 // 5
 ```
 
+For services that render the same text for terminals with different width
+conventions, use an immutable [`WidthStrategy`](https://pkg.go.dev/github.com/rivo/uniseg#WidthStrategy)
+instead of mutating the global `EastAsianAmbiguousWidth`. It pins both the
+East-Asian Ambiguous width and the emoji presentation width to 1 or 2 and is
+safe for concurrent use:
+
+```go
+strategy := uniseg.NewWidthStrategy(2, 2) // Ambiguous and emoji width of 2 cells
+width := strategy.StringWidth("ⓐ😀")
+gr := strategy.NewGraphemes("ⓐ😀")
+```
+
 ### Using the [`Graphemes`](https://pkg.go.dev/github.com/rivo/uniseg#Graphemes) Class
 
 This is the most convenient method of iterating over grapheme clusters:

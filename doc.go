@@ -104,6 +104,19 @@ Note that whether these widths appear correct depends on your application's
 render engine, to which extent it conforms to the Unicode Standard, and its
 choice of font.
 
+The package-level [EastAsianAmbiguousWidth] variable changes the Ambiguous
+width globally, so it is unsuitable when parallel requests must use different
+widths. For those cases, use an immutable [WidthStrategy], constructed with
+[NewWidthStrategy], which explicitly pins both the Ambiguous width and the
+emoji presentation width to either 1 or 2. It offers the same three ways to
+measure text - [WidthStrategy.StringWidth] for a whole string,
+[WidthStrategy.NewGraphemes] for grapheme iteration, and
+[WidthStrategy.FirstGraphemeCluster] and
+[WidthStrategy.FirstGraphemeClusterInString] for per-cluster parsing - backed
+by a single, consistent width calculation. Grapheme boundaries never depend on
+the chosen strategy. A strategy is safe for concurrent use and never consults
+global state.
+
 [wcswidth()]: https://man7.org/linux/man-pages/man3/wcswidth.3.html
 */
 package uniseg

@@ -90,6 +90,13 @@ const (
 //
 // [UAX #14 LB3]: https://www.unicode.org/reports/tr14/#Algorithm
 func Step(b []byte, state int) (cluster, rest []byte, boundaries int, newState int) {
+	return step(b, state, nil)
+}
+
+// step is the single implementation backing [Step] and the [WidthStrategy]
+// code path (via [Graphemes.Next]). A nil strategy reproduces the
+// package-default behavior.
+func step(b []byte, state int, strategy *WidthStrategy) (cluster, rest []byte, boundaries int, newState int) {
 	// An empty byte slice returns nothing.
 	if len(b) == 0 {
 		return
@@ -104,7 +111,7 @@ func Step(b []byte, state int) (cluster, rest []byte, boundaries int, newState i
 		} else {
 			prop = state >> shiftPropState
 		}
-		return b, nil, LineMustBreak | (1 << shiftWord) | (1 << shiftSentence) | (runeWidth(r, prop) << ShiftWidth), grAny | (wbAny << shiftWordState) | (sbAny << shiftSentenceState) | (lbAny << shiftLineState) | (prop << shiftPropState)
+		return b, nil, LineMustBreak | (1 << shiftWord) | (1 << shiftSentence) | (strategy.firstRuneWidth(r, prop) << ShiftWidth), grAny | (wbAny << shiftWordState) | (sbAny << shiftSentenceState) | (lbAny << shiftLineState) | (prop << shiftPropState)
 	}
 
 	// If we don't know the state, determine it now.
@@ -124,7 +131,7 @@ func Step(b []byte, state int) (cluster, rest []byte, boundaries int, newState i
 	}
 
 	// Transition until we find a grapheme cluster boundary.
-	width := runeWidth(r, firstProp)
+	width := strategy.firstRuneWidth(r, firstProp)
 	for {
 		var (
 			graphemeBoundary, wordBoundary, sentenceBoundary bool
@@ -150,15 +157,7 @@ func Step(b []byte, state int) (cluster, rest []byte, boundaries int, newState i
 			return b[:length], b[length:], boundary, graphemeState | (wordState << shiftWordState) | (sentenceState << shiftSentenceState) | (lineState << shiftLineState) | (prop << shiftPropState)
 		}
 
-		if firstProp == prExtendedPictographic {
-			if r == vs15 {
-				width = 1
-			} else if r == vs16 {
-				width = 2
-			}
-		} else if firstProp != prRegionalIndicator && firstProp != prL {
-			width += runeWidth(r, prop)
-		}
+		width = strategy.addRuneWidth(width, firstProp, prop, r)
 
 		length += l
 		if len(b) <= length {
@@ -169,6 +168,13 @@ func Step(b []byte, state int) (cluster, rest []byte, boundaries int, newState i
 
 // StepString is like [Step] but its input and outputs are strings.
 func StepString(str string, state int) (cluster, rest string, boundaries int, newState int) {
+	return stepString(str, state, nil)
+}
+
+// stepString is the single implementation backing [StepString] and the
+// [WidthStrategy] code path (via [Graphemes.Next]). A nil strategy reproduces
+// the package-default behavior.
+func stepString(str string, state int, strategy *WidthStrategy) (cluster, rest string, boundaries int, newState int) {
 	// An empty byte slice returns nothing.
 	if len(str) == 0 {
 		return
@@ -178,7 +184,7 @@ func StepString(str string, state int) (cluster, rest string, boundaries int, ne
 	r, length := utf8.DecodeRuneInString(str)
 	if len(str) <= length { // If we're already past the end, there is nothing else to parse.
 		prop := propertyGraphemes(r)
-		return str, "", LineMustBreak | (1 << shiftWord) | (1 << shiftSentence) | (runeWidth(r, prop) << ShiftWidth), grAny | (wbAny << shiftWordState) | (sbAny << shiftSentenceState) | (lbAny << shiftLineState)
+		return str, "", LineMustBreak | (1 << shiftWord) | (1 << shiftSentence) | (strategy.firstRuneWidth(r, prop) << ShiftWidth), grAny | (wbAny << shiftWordState) | (sbAny << shiftSentenceState) | (lbAny << shiftLineState)
 	}
 
 	// If we don't know the state, determine it now.
@@ -198,7 +204,7 @@ func StepString(str string, state int) (cluster, rest string, boundaries int, ne
 	}
 
 	// Transition until we find a grapheme cluster boundary.
-	width := runeWidth(r, firstProp)
+	width := strategy.firstRuneWidth(r, firstProp)
 	for {
 		var (
 			graphemeBoundary, wordBoundary, sentenceBoundary bool
@@ -224,15 +230,7 @@ func StepString(str string, state int) (cluster, rest string, boundaries int, ne
 			return str[:length], str[length:], boundary, graphemeState | (wordState << shiftWordState) | (sentenceState << shiftSentenceState) | (lineState << shiftLineState) | (prop << shiftPropState)
 		}
 
-		if firstProp == prExtendedPictographic {
-			if r == vs15 {
-				width = 1
-			} else if r == vs16 {
-				width = 2
-			}
-		} else if firstProp != prRegionalIndicator && firstProp != prL {
-			width += runeWidth(r, prop)
-		}
+		width = strategy.addRuneWidth(width, firstProp, prop, r)
 
 		length += l
 		if len(str) <= length {
