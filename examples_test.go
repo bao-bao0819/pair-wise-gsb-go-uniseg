@@ -70,6 +70,33 @@ func ExampleFirstWordInString() {
 	//(!)
 }
 
+func ExampleTokenizeIdentifiersInString() {
+	documents := []string{"HTTPServer_v2", "XMLReader"}
+	index := make(map[string][]string)
+
+	for _, document := range documents {
+		for _, token := range uniseg.TokenizeIdentifiersInString(document) {
+			if token.Class != uniseg.IdentifierTokenSubword {
+				continue
+			}
+			term := document[token.Start:token.End]
+			index[term] = append(index[term],
+				fmt.Sprintf("%s:[%d,%d)", document, token.Start, token.End))
+		}
+	}
+
+	for _, term := range []string{"HTTP", "Server", "v", "2", "XML", "Reader"} {
+		fmt.Println(term, index[term])
+	}
+	// Output:
+	// HTTP [HTTPServer_v2:[0,4)]
+	// Server [HTTPServer_v2:[4,10)]
+	// v [HTTPServer_v2:[11,12)]
+	// 2 [HTTPServer_v2:[12,13)]
+	// XML [XMLReader:[0,3)]
+	// Reader [XMLReader:[3,9)]
+}
+
 func ExampleFirstSentence() {
 	b := []byte("This is sentence 1.0. And this is sentence two.")
 	state := -1

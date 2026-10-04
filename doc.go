@@ -49,6 +49,16 @@ next word" control-arrow keys), and the dialog option "Whole Word Search" for
 search and replace. This package provides methods for determining word
 boundaries.
 
+# Identifier Tokenization
+
+Identifier tokenization is a separate mode for code search indexes; it does not
+change the Unicode word boundary rules. [TokenizeIdentifiers] and
+[TokenizeIdentifiersInString] recognize maximal regions made from Unicode letters,
+decimal digits, combining marks, and underscores. They preserve grapheme
+clusters, split camel-case and letter/digit boundaries, return underscore
+separators, and retain standard word segments for all other text. Each token
+carries its original half-open byte range, class, and segmentation reason.
+
 # Sentence Boundaries
 
 Sentence boundaries are often used for triple-click or some other method of

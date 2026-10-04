@@ -23,6 +23,10 @@ This package provides tools to iterate over these grapheme clusters. This may be
 
 Word boundaries are used in a number of different contexts. The most familiar ones are selection (double-click mouse selection), cursor movement ("move to next word" control-arrow keys), and the dialog option "Whole Word Search" for search and replace. They are also used in database queries, to determine whether elements are within a certain number of words of one another. Searching may also use word boundaries in determining matching items. This package provides tools to determine word boundaries within strings.
 
+### Identifier Tokenization
+
+For code search, [`TokenizeIdentifiers`](https://pkg.go.dev/github.com/rivo/uniseg#TokenizeIdentifiers) and [`TokenizeIdentifiersInString`](https://pkg.go.dev/github.com/rivo/uniseg#TokenizeIdentifiersInString) provide a separate identifier-oriented mode. Maximal regions of Unicode letters, decimal digits, combining marks, and underscores are split into subwords (for example, `HTTPServer_v2` becomes `HTTP`, `Server`, `_`, `v`, `2`, while `XMLReader` becomes `XML`, `Reader`). Other text keeps the standard word segments. The standard Unicode word boundary functions are unchanged.
+
 ### Sentence Boundaries
 
 Sentence boundaries are often used for triple-click or some other method of selecting or iterating through blocks of text that are larger than single words. They are also used to determine whether words occur within the same sentence in database queries. This package provides tools to determine sentence boundaries within strings.
