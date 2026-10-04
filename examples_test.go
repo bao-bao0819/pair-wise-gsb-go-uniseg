@@ -329,3 +329,59 @@ func ExampleStringWidth() {
 	fmt.Println(uniseg.StringWidth("Hello, 世界"))
 	// Output: 11
 }
+
+func ExampleNewIdentifierTokens() {
+	// Build a simple search index by extracting only identifier sub-words.
+	documents := []string{
+		"HTTPServer_v2",
+		"XMLReader",
+	}
+	index := map[string][]int{}
+	for docID, doc := range documents {
+		it := uniseg.NewIdentifierTokens(doc)
+		for it.Next() {
+			tok := it.Token()
+			if tok.Class != uniseg.IdentifierWord {
+				continue // Skip separators and non-identifier text.
+			}
+			subword := it.Str() // Original bytes; no normalization is applied.
+			index[subword] = append(index[subword], docID)
+		}
+	}
+	for _, term := range []string{"HTTP", "Server", "v", "2", "XML", "Reader"} {
+		fmt.Printf("%s -> document %v\n", term, index[term])
+	}
+	// Output:
+	// HTTP -> document [0]
+	// Server -> document [0]
+	// v -> document [0]
+	// 2 -> document [0]
+	// XML -> document [1]
+	// Reader -> document [1]
+}
+
+func ExampleNewIdentifierTokensFromBytes() {
+	// The byte and string entry points return identical byte ranges.
+	b := []byte("HTTPServer_v2, XMLReader")
+	it := uniseg.NewIdentifierTokensFromBytes(b)
+	for it.Next() {
+		tok := it.Token()
+		from, to := it.Positions()
+		class := map[int]string{
+			uniseg.IdentifierWord:      "word",
+			uniseg.IdentifierSeparator: "sep",
+			uniseg.IdentifierNonWord:   "other",
+		}[tok.Class]
+		fmt.Printf("%d:%d %-5s %q\n", from, to, class, string(b[from:to]))
+	}
+	// Output:
+	// 0:4 word  "HTTP"
+	// 4:10 word  "Server"
+	// 10:11 sep   "_"
+	// 11:12 word  "v"
+	// 12:13 word  "2"
+	// 13:14 other ","
+	// 14:15 other " "
+	// 15:18 word  "XML"
+	// 18:24 word  "Reader"
+}
