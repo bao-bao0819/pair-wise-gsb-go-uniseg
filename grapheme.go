@@ -39,6 +39,11 @@ type Graphemes struct {
 
 	// The current state of the [Step] parser.
 	state int
+
+	// The width strategy used by this iterator. If nil, the package-wide
+	// [EastAsianAmbiguousWidth] and the default emoji presentation width are
+	// used, preserving the behavior of [NewGraphemes].
+	widthStrategy *WidthStrategy
 }
 
 // NewGraphemes returns a new grapheme cluster iterator.
@@ -47,6 +52,20 @@ func NewGraphemes(str string) *Graphemes {
 		original:  str,
 		remaining: str,
 		state:     -1,
+	}
+}
+
+// NewGraphemesWithWidthStrategy returns a new grapheme cluster iterator which
+// calculates monospace widths using the given immutable [WidthStrategy].
+// Grapheme cluster boundaries are unaffected by the strategy. The iterator can
+// be used concurrently with iterators using other strategies, as no global
+// state is consulted for widths.
+func NewGraphemesWithWidthStrategy(str string, strategy *WidthStrategy) *Graphemes {
+	return &Graphemes{
+		original:      str,
+		remaining:     str,
+		state:         -1,
+		widthStrategy: strategy,
 	}
 }
 
@@ -72,7 +91,11 @@ func (g *Graphemes) Next() bool {
 		return false
 	}
 	g.offset += len(g.cluster)
-	g.cluster, g.remaining, g.boundaries, g.state = StepString(g.remaining, g.state)
+	if g.widthStrategy != nil {
+		g.cluster, g.remaining, g.boundaries, g.state = stepString(g.remaining, g.state, g.widthStrategy.ambiguousWidth, g.widthStrategy.emojiWidth)
+	} else {
+		g.cluster, g.remaining, g.boundaries, g.state = StepString(g.remaining, g.state)
+	}
 	return true
 }
 
@@ -227,6 +250,14 @@ const shiftGraphemePropState = 4
 //
 // [Unicode Standard Annex #29, Grapheme Cluster Boundaries]: http://unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries
 func FirstGraphemeCluster(b []byte, state int) (cluster, rest []byte, width, newState int) {
+	return firstGraphemeCluster(b, state, EastAsianAmbiguousWidth, defaultEmojiPresentationWidth)
+}
+
+// firstGraphemeCluster is the parameterized implementation shared by
+// [FirstGraphemeCluster] and [WidthStrategy.FirstGraphemeCluster]. The
+// ambiguousWidth and emojiWidth parameters only affect the returned width;
+// segmentation is identical for all callers.
+func firstGraphemeCluster(b []byte, state int, ambiguousWidth, emojiWidth int) (cluster, rest []byte, width, newState int) {
 	// An empty byte slice returns nothing.
 	if len(b) == 0 {
 		return
@@ -241,7 +272,7 @@ func FirstGraphemeCluster(b []byte, state int) (cluster, rest []byte, width, new
 		} else {
 			prop = state >> shiftGraphemePropState
 		}
-		return b, nil, runeWidth(r, prop), grAny | (prop << shiftGraphemePropState)
+		return b, nil, runeWidthWith(r, prop, ambiguousWidth, emojiWidth), grAny | (prop << shiftGraphemePropState)
 	}
 
 	// If we don't know the state, determine it now.
@@ -251,7 +282,7 @@ func FirstGraphemeCluster(b []byte, state int) (cluster, rest []byte, width, new
 	} else {
 		firstProp = state >> shiftGraphemePropState
 	}
-	width += runeWidth(r, firstProp)
+	width += runeWidthWith(r, firstProp, ambiguousWidth, emojiWidth)
 
 	// Transition until we find a boundary.
 	for {
@@ -267,15 +298,7 @@ func FirstGraphemeCluster(b []byte, state int) (cluster, rest []byte, width, new
 			return b[:length], b[length:], width, state | (prop << shiftGraphemePropState)
 		}
 
-		if firstProp == prExtendedPictographic {
-			if r == vs15 {
-				width = 1
-			} else if r == vs16 {
-				width = 2
-			}
-		} else if firstProp != prRegionalIndicator && firstProp != prL {
-			width += runeWidth(r, prop)
-		}
+		width = updateClusterWidth(width, firstProp, prop, r, ambiguousWidth, emojiWidth)
 
 		length += l
 		if len(b) <= length {
@@ -287,6 +310,13 @@ func FirstGraphemeCluster(b []byte, state int) (cluster, rest []byte, width, new
 // FirstGraphemeClusterInString is like [FirstGraphemeCluster] but its input and
 // outputs are strings.
 func FirstGraphemeClusterInString(str string, state int) (cluster, rest string, width, newState int) {
+	return firstGraphemeClusterInString(str, state, EastAsianAmbiguousWidth, defaultEmojiPresentationWidth)
+}
+
+// firstGraphemeClusterInString is the parameterized implementation shared by
+// [FirstGraphemeClusterInString] and
+// [WidthStrategy.FirstGraphemeClusterInString].
+func firstGraphemeClusterInString(str string, state int, ambiguousWidth, emojiWidth int) (cluster, rest string, width, newState int) {
 	// An empty string returns nothing.
 	if len(str) == 0 {
 		return
@@ -301,7 +331,7 @@ func FirstGraphemeClusterInString(str string, state int) (cluster, rest string, 
 		} else {
 			prop = state >> shiftGraphemePropState
 		}
-		return str, "", runeWidth(r, prop), grAny | (prop << shiftGraphemePropState)
+		return str, "", runeWidthWith(r, prop, ambiguousWidth, emojiWidth), grAny | (prop << shiftGraphemePropState)
 	}
 
 	// If we don't know the state, determine it now.
@@ -311,7 +341,7 @@ func FirstGraphemeClusterInString(str string, state int) (cluster, rest string, 
 	} else {
 		firstProp = state >> shiftGraphemePropState
 	}
-	width += runeWidth(r, firstProp)
+	width += runeWidthWith(r, firstProp, ambiguousWidth, emojiWidth)
 
 	// Transition until we find a boundary.
 	for {
@@ -327,15 +357,7 @@ func FirstGraphemeClusterInString(str string, state int) (cluster, rest string, 
 			return str[:length], str[length:], width, state | (prop << shiftGraphemePropState)
 		}
 
-		if firstProp == prExtendedPictographic {
-			if r == vs15 {
-				width = 1
-			} else if r == vs16 {
-				width = 2
-			}
-		} else if firstProp != prRegionalIndicator && firstProp != prL {
-			width += runeWidth(r, prop)
-		}
+		width = updateClusterWidth(width, firstProp, prop, r, ambiguousWidth, emojiWidth)
 
 		length += l
 		if len(str) <= length {

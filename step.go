@@ -90,6 +90,12 @@ const (
 //
 // [UAX #14 LB3]: https://www.unicode.org/reports/tr14/#Algorithm
 func Step(b []byte, state int) (cluster, rest []byte, boundaries int, newState int) {
+	return step(b, state, EastAsianAmbiguousWidth, defaultEmojiPresentationWidth)
+}
+
+// step is the parameterized implementation shared by [Step] and the
+// [WidthStrategy]-aware grapheme iterator.
+func step(b []byte, state int, ambiguousWidth, emojiWidth int) (cluster, rest []byte, boundaries int, newState int) {
 	// An empty byte slice returns nothing.
 	if len(b) == 0 {
 		return
@@ -104,7 +110,7 @@ func Step(b []byte, state int) (cluster, rest []byte, boundaries int, newState i
 		} else {
 			prop = state >> shiftPropState
 		}
-		return b, nil, LineMustBreak | (1 << shiftWord) | (1 << shiftSentence) | (runeWidth(r, prop) << ShiftWidth), grAny | (wbAny << shiftWordState) | (sbAny << shiftSentenceState) | (lbAny << shiftLineState) | (prop << shiftPropState)
+		return b, nil, LineMustBreak | (1 << shiftWord) | (1 << shiftSentence) | (runeWidthWith(r, prop, ambiguousWidth, emojiWidth) << ShiftWidth), grAny | (wbAny << shiftWordState) | (sbAny << shiftSentenceState) | (lbAny << shiftLineState) | (prop << shiftPropState)
 	}
 
 	// If we don't know the state, determine it now.
@@ -124,7 +130,7 @@ func Step(b []byte, state int) (cluster, rest []byte, boundaries int, newState i
 	}
 
 	// Transition until we find a grapheme cluster boundary.
-	width := runeWidth(r, firstProp)
+	width := runeWidthWith(r, firstProp, ambiguousWidth, emojiWidth)
 	for {
 		var (
 			graphemeBoundary, wordBoundary, sentenceBoundary bool
@@ -150,15 +156,7 @@ func Step(b []byte, state int) (cluster, rest []byte, boundaries int, newState i
 			return b[:length], b[length:], boundary, graphemeState | (wordState << shiftWordState) | (sentenceState << shiftSentenceState) | (lineState << shiftLineState) | (prop << shiftPropState)
 		}
 
-		if firstProp == prExtendedPictographic {
-			if r == vs15 {
-				width = 1
-			} else if r == vs16 {
-				width = 2
-			}
-		} else if firstProp != prRegionalIndicator && firstProp != prL {
-			width += runeWidth(r, prop)
-		}
+		width = updateClusterWidth(width, firstProp, prop, r, ambiguousWidth, emojiWidth)
 
 		length += l
 		if len(b) <= length {
@@ -169,6 +167,12 @@ func Step(b []byte, state int) (cluster, rest []byte, boundaries int, newState i
 
 // StepString is like [Step] but its input and outputs are strings.
 func StepString(str string, state int) (cluster, rest string, boundaries int, newState int) {
+	return stepString(str, state, EastAsianAmbiguousWidth, defaultEmojiPresentationWidth)
+}
+
+// stepString is the parameterized implementation shared by [StepString] and
+// the [WidthStrategy]-aware grapheme iterator.
+func stepString(str string, state int, ambiguousWidth, emojiWidth int) (cluster, rest string, boundaries int, newState int) {
 	// An empty byte slice returns nothing.
 	if len(str) == 0 {
 		return
@@ -178,7 +182,7 @@ func StepString(str string, state int) (cluster, rest string, boundaries int, ne
 	r, length := utf8.DecodeRuneInString(str)
 	if len(str) <= length { // If we're already past the end, there is nothing else to parse.
 		prop := propertyGraphemes(r)
-		return str, "", LineMustBreak | (1 << shiftWord) | (1 << shiftSentence) | (runeWidth(r, prop) << ShiftWidth), grAny | (wbAny << shiftWordState) | (sbAny << shiftSentenceState) | (lbAny << shiftLineState)
+		return str, "", LineMustBreak | (1 << shiftWord) | (1 << shiftSentence) | (runeWidthWith(r, prop, ambiguousWidth, emojiWidth) << ShiftWidth), grAny | (wbAny << shiftWordState) | (sbAny << shiftSentenceState) | (lbAny << shiftLineState)
 	}
 
 	// If we don't know the state, determine it now.
@@ -198,7 +202,7 @@ func StepString(str string, state int) (cluster, rest string, boundaries int, ne
 	}
 
 	// Transition until we find a grapheme cluster boundary.
-	width := runeWidth(r, firstProp)
+	width := runeWidthWith(r, firstProp, ambiguousWidth, emojiWidth)
 	for {
 		var (
 			graphemeBoundary, wordBoundary, sentenceBoundary bool
@@ -224,15 +228,7 @@ func StepString(str string, state int) (cluster, rest string, boundaries int, ne
 			return str[:length], str[length:], boundary, graphemeState | (wordState << shiftWordState) | (sentenceState << shiftSentenceState) | (lineState << shiftLineState) | (prop << shiftPropState)
 		}
 
-		if firstProp == prExtendedPictographic {
-			if r == vs15 {
-				width = 1
-			} else if r == vs16 {
-				width = 2
-			}
-		} else if firstProp != prRegionalIndicator && firstProp != prL {
-			width += runeWidth(r, prop)
-		}
+		width = updateClusterWidth(width, firstProp, prop, r, ambiguousWidth, emojiWidth)
 
 		length += l
 		if len(str) <= length {

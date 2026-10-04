@@ -59,6 +59,27 @@ fmt.Println(width)
 // 5
 ```
 
+### Using an Immutable Width Strategy
+
+The global `EastAsianAmbiguousWidth` variable affects all concurrent requests.
+To render text for terminals with different width conventions in parallel,
+create an immutable `WidthStrategy` with `NewWidthStrategy`. It provides the
+same operations as the option-less API and only changes the two declared
+widths:
+
+```go
+narrow := uniseg.NewWidthStrategy(
+    uniseg.WithAmbiguousWidth(1), // East-Asian Ambiguous characters: 1 column
+    uniseg.WithEmojiWidth(1),     // emoji presentation units: 1 column
+)
+wide := uniseg.NewWidthStrategy(
+    uniseg.WithAmbiguousWidth(2), // another terminal: 2 columns
+    uniseg.WithEmojiWidth(2),
+)
+fmt.Println(narrow.StringWidth("¡😀中"))
+fmt.Println(wide.StringWidth("¡😀中"))
+```
+
 ### Using the [`Graphemes`](https://pkg.go.dev/github.com/rivo/uniseg#Graphemes) Class
 
 This is the most convenient method of iterating over grapheme clusters:

@@ -100,6 +100,15 @@ point will force a total width of 2, except if the Variation Selector-15
 (U+FE0E) is included, in which case the total width is always 1. Grapheme
 clusters ending with Variation Selector-16 (U+FE0F) have a width of 2.
 
+Because [EastAsianAmbiguousWidth] is a global variable, changing it affects
+all concurrent requests. For independent width policies, create an immutable
+[WidthStrategy] with [NewWidthStrategy] and the [WithAmbiguousWidth] and
+[WithEmojiWidth] options. Such strategies can be used in parallel without
+interfering with each other and without mutating global state; they provide
+[WidthStrategy.StringWidth], [WidthStrategy.NewGraphemes],
+[WidthStrategy.FirstGraphemeCluster], and
+[WidthStrategy.FirstGraphemeClusterInString].
+
 Note that whether these widths appear correct depends on your application's
 render engine, to which extent it conforms to the Unicode Standard, and its
 choice of font.
